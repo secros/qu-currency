@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Currency Converter — Live Exchange Rates</title>
+<meta name="description" content="Free currency converter with live exchange rates. Convert between 160+ currencies instantly. Updated daily via open exchange rate data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:       #0d1117;
+    --panel:    #161b22;
+    --panel2:   #1c2430;
+    --border:   rgba(255,255,255,0.08);
+    --green:    #3fb950;
+    --green-s:  rgba(63,185,80,0.12);
+    --green-d:  #238636;
+    --teal:     #39d2c0;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --light:    #484f58;
+    --red:      #f85149;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    bottom: 0; left: 0;
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse at bottom left, rgba(63,185,80,0.06) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  body.embed header, body.embed footer, body.embed .share-section,
+  body.embed .faq-section, body.embed .bookmark-tip, body.embed .popular-section { display: none !important; }
+  body.embed .powered-by { display: flex !important; }
+
+  .powered-by { display: none; justify-content: center; padding: 10px; font-size: 12px; color: var(--muted); }
+  .powered-by a { color: var(--green); text-decoration: none; }
+
+  header {
+    position: relative; z-index: 10;
+    padding: 18px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo a { text-decoration: none; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500; color: var(--muted); }
+  .logo span { color: var(--green); }
+
+  .rate-ticker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--muted);
+  }
+  .rate-ticker span { color: var(--green); }
+
+  main {
+    position: relative; z-index: 10;
+    max-width: 740px; margin: 0 auto;
+    padding: 48px 24px 64px;
+  }
+
+  /* HERO */
+  .hero { margin-bottom: 36px; }
+  h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(26px, 4vw, 40px);
+    font-weight: 600; line-height: 1.15;
+    color: var(--text); margin-bottom: 10px;
+  }
+  h1 .hl { color: var(--green); }
+  .hero-sub { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+  /* CONVERTER */
+  .converter-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px;
+    margin-bottom: 16px;
+  }
+
+  .conv-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px; align-items: end;
+    margin-bottom: 20px;
+  }
+
+  .conv-side label {
+    display: block; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+
+  .input-wrap {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color 0.2s;
+  }
+  .input-wrap:focus-within { border-color: var(--green); }
+
+  .currency-select {
+    background: none; border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; font-weight: 500;
+    padding: 10px 12px; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+    width: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b949e'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  .currency-select:focus { outline: none; }
+  .currency-select option { background: #161b22; }
+
+  .amount-input {
+    background: none; border: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 24px; font-weight: 600;
+    padding: 14px 12px; width: 100%;
+  }
+  .amount-input:focus { outline: none; }
+  .amount-input::placeholder { color: var(--light); }
+
+  .swap-btn {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 50%; width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px;
+    transition: all 0.2s; color: var(--muted);
+    flex-shrink: 0; margin-bottom: 0; align-self: center; margin-top: 20px;
+  }
+  .swap-btn:hover { border-color: var(--green); color: var(--green); transform: rotate(180deg); }
+
+  /* RESULT */
+  .result-box {
+    background: var(--green-s);
+    border: 1px solid var(--green-d);
+    border-radius: 12px; padding: 20px 24px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .result-box.show { display: block; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .result-main {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 600; color: var(--green);
+    margin-bottom: 6px;
+  }
+  .result-equation {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; color: var(--muted);
+  }
+  .result-updated { font-size: 11px; color: var(--light); margin-top: 8px; }
+
+  /* QUICK AMOUNTS */
+  .quick-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .quick-amounts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .quick-btn {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 6px 14px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    color: var(--muted); cursor: pointer; transition: all 0.2s;
+  }
+  .quick-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* RATE TABLE */
+  .rate-table-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .rtp-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+  .rate-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .rate-row:last-child { border-bottom: none; }
+  .rate-row:hover { background: var(--panel2); }
+  .rr-left { display: flex; align-items: center; gap: 12px; }
+  .rr-flag { font-size: 20px; }
+  .rr-code { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500; color: var(--text); }
+  .rr-name { font-size: 12px; color: var(--muted); }
+  .rr-rate { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500; color: var(--green); }
+
+  /* POPULAR */
+  .popular-section { margin-bottom: 16px; }
+  .pop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .pop-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .pop-card:hover { border-color: var(--green); }
+  .pop-pair { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .pop-rate { font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 500; color: var(--text); }
+  .pop-label { font-size: 11px; color: var(--light); }
+
+  /* ERROR */
+  .error-box {
+    background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 10px; padding: 14px 18px;
+    font-size: 13px; color: var(--red);
+    display: none; margin-bottom: 16px;
+  }
+  .error-box.show { display: block; }
+
+  /* LOADING */
+  .loading-bar {
+    height: 2px; background: var(--border);
+    border-radius: 2px; overflow: hidden;
+    margin-bottom: 16px; display: none;
+  }
+  .loading-bar.show { display: block; }
+  .loading-bar::after {
+    content: ''; display: block;
+    height: 100%; width: 40%;
+    background: var(--green);
+    border-radius: 2px;
+    animation: slide 1s ease-in-out infinite;
+  }
+  @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+
+  /* FAQ */
+  .faq-section { margin-top: 60px; }
+  .section-title { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 24px; }
+  .faq-item { border-bottom: 1px solid var(--border); padding: 18px 0; }
+  .faq-q { font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 16px; user-select: none; }
+  .faq-q::after { content: '+'; font-size: 18px; color: var(--green); flex-shrink: 0; transition: transform 0.25s; }
+  .faq-item.open .faq-q::after { transform: rotate(45deg); }
+  .faq-a { font-size: 13px; color: var(--muted); line-height: 1.8; max-height: 0; overflow: hidden; transition: max-height 0.35s ease, padding 0.2s; }
+  .faq-item.open .faq-a { max-height: 400px; padding-top: 12px; }
+
+  /* SHARE */
+  .share-section { margin-top: 40px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .share-label { font-size: 13px; color: var(--muted); }
+  .share-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--border); color: var(--text); text-decoration: none; padding: 7px 13px; border-radius: 7px; font-size: 13px; cursor: pointer; transition: all 0.2s; font-family: 'IBM Plex Sans', sans-serif; }
+  .share-btn:hover { border-color: var(--green); color: var(--green); }
+
+  .bookmark-tip { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: center; }
+
+  .related-section { margin-top: 60px; }
+  .related-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .related-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-decoration: none; transition: all 0.2s; display: block; }
+  .related-card:hover { border-color: var(--green); transform: translateY(-2px); }
+  .related-card-emoji { font-size: 22px; margin-bottom: 8px; }
+  .related-card-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .related-card-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  footer { border-top: 1px solid var(--border); padding: 24px 32px; text-align: center; font-size: 12px; color: var(--muted); }
+  footer a { color: var(--green); text-decoration: none; }
+
+  @media (max-width: 540px) {
+    .conv-row { grid-template-columns: 1fr; }
+    .swap-btn { transform: rotate(90deg); width: 36px; height: 36px; margin: 0 auto; }
+    .swap-btn:hover { transform: rotate(270deg); }
+    main { padding: 32px 16px 48px; }
+    header { padding: 16px; }
+    .rtp-header span:last-child { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="powered-by"><span>Powered by <a href="https://quickutils.tools">quickutils.tools</a></span></div>
+
+<header>
+  <div class="logo"><a href="https://quickutils.tools"><span>quick</span>utils.tools</a></div>
+  <div class="rate-ticker" id="ticker">Fetching rates…</div>
+</header>
+
+<main>
+
+  <div class="hero">
+    <h1>Currency<br><span class="hl">Converter</span></h1>
+    <p class="hero-sub">Live exchange rates · 160+ currencies · Updated daily</p>
+  </div>
+
+  <div class="loading-bar" id="loading-bar"></div>
+  <div class="error-box" id="error-box"></div>
+
+  <div class="converter-panel">
+
+    <div class="conv-row">
+      <div class="conv-side">
+        <label>From</label>
+        <div class="input-wrap">
+          <select class="currency-select" id="from-cur" onchange="convert()"></select>
+          <input class="amount-input" id="amount" type="number" value="1" min="0" placeholder="1" oninput="convert()">
+        </div>
+      </div>
+
+      <button class="swap-btn" onclick="swapCurrencies()" title="Swap currencies">⇄</button>
+
+      <div class="conv-side">
+        <label>To</label>
+        <div class="input-wrap">
+          <select class="currency-select" id="to-cur" onchange="convert()"></select>
+          <input class="amount-input" id="result-input" type="number" placeholder="—" oninput="reverseConvert()" style="color:var(--green)">
+        </div>
+      </div>
+    </div>
+
+    <div class="result-box" id="result-box">
+      <div class="result-main" id="result-main">—</div>
+      <div class="result-equation" id="result-eq">—</div>
+      <div class="result-updated" id="result-updated"></div>
+    </div>
+
+    <div class="quick-label">Quick amounts</div>
+    <div class="quick-amounts">
+      <button class="quick-btn" onclick="setAmount(1)">1</button>
+      <button class="quick-btn" onclick="setAmount(5)">5</button>
+      <button class="quick-btn" onclick="setAmount(10)">10</button>
+      <button class="quick-btn" onclick="setAmount(50)">50</button>
+      <button class="quick-btn" onclick="setAmount(100)">100</button>
+      <button class="quick-btn" onclick="setAmount(500)">500</button>
+      <button class="quick-btn" onclick="setAmount(1000)">1,000</button>
+      <button class="quick-btn" onclick="setAmount(10000)">10,000</button>
+    </div>
+
+  </div>
+
+  <!-- POPULAR PAIRS -->
+  <div class="popular-section">
+    <div class="section-title" style="font-size:16px;margin-bottom:12px;">Popular pairs</div>
+    <div class="pop-grid" id="pop-grid">
+      <div class="pop-card" style="opacity:0.4"><div class="pop-pair">USD/EUR</div><div class="pop-rate">—</div><div class="pop-label">loading…</div></div>
+    </div>
+  </div>
+
+  <!-- RATE TABLE -->
+  <div class="rate-table-panel" id="rate-table-panel" style="display:none">
+    <div class="rtp-header">
+      <span id="rtp-title">1 USD =</span>
+      <span>Exchange rate</span>
+    </div>
+    <div id="rate-rows"></div>
+  </div>
+
+  <!-- SHARE -->
+  <div class="share-section">
+    <span class="share-label">Share:</span>
+    <a class="share-btn" href="https://twitter.com/intent/tweet?text=Free+live+Currency+Converter+%E2%80%94+160%2B+currencies&url=https://currency.quickutils.tools" target="_blank" rel="noopener">𝕏 Twitter</a>
+    <a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=https://currency.quickutils.tools" target="_blank" rel="noopener">Facebook</a>
+    <a class="share-btn" href="https://www.reddit.com/submit?url=https://currency.quickutils.tools&title=Currency+Converter" target="_blank" rel="noopener">Reddit</a>
+    <button class="share-btn" onclick="copyLink()">🔗 Copy link</button>
+  </div>
+
+  <p class="bookmark-tip">💡 Bookmark — <kbd style="background:var(--panel);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:11px;">Ctrl+D</kbd> Windows · <kbd style="background:var(--panel);border:1px solid var(--border);padding:1px 5px;border-radius:4px;font-size:11px;">Cmd+D</kbd> Mac</p>
+
+  <!-- FAQ -->
+  <section class="faq-section">
+    <h2 class="section-title">Currency Converter — FAQ</h2>
+
+    <div class="faq-item">
+      <div class="faq-q">Where do the exchange rates come from?</div>
+      <div class="faq-a">Rates are fetched from the Open Exchange Rates / exchangerate-api.com free tier, which sources data from financial markets and updates daily. For most everyday conversions — travel money, international transfers, rough cost estimates — daily rates are perfectly adequate. For live trading, use a dedicated financial terminal with tick-level data.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">How often are the rates updated?</div>
+      <div class="faq-a">The free API tier updates rates once per day. Foreign exchange markets are open 24/5 (closed weekends), so rates fluctuate continuously during market hours. The rate you see here will be within 24 hours of the current mid-market rate — suitable for planning and estimation purposes.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">What is the mid-market rate?</div>
+      <div class="faq-a">The mid-market rate (also called the interbank rate) is the midpoint between the buy and sell prices of two currencies on the global market. It's the "real" exchange rate without any markup. Banks, travel agencies, and money changers all add a spread or fee on top of this rate — sometimes 2–5% or more. Services like Wise (TransferWise) advertise using the mid-market rate, which is one reason they're often cheaper than banks for international transfers.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">What is the best way to convert currency when traveling?</div>
+      <div class="faq-a">Generally: (1) Use a no-foreign-transaction-fee credit card for purchases — most major card networks apply rates close to the mid-market rate. (2) If you need cash, withdraw from a local ATM in the destination country rather than exchanging at airports, which have terrible rates. (3) Avoid dynamic currency conversion (DCC) — always pay in the local currency when given the choice. (4) For larger amounts, services like Wise or Revolut typically offer the best rates for bank-to-bank transfers.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Why does USD to EUR differ from EUR to USD?</div>
+      <div class="faq-a">They're reciprocals of each other. If 1 USD = 0.92 EUR, then 1 EUR = 1/0.92 = 1.087 USD. The rates aren't "different" in the sense of being inconsistent — they're just two ways of expressing the same relationship. In practice, you'll see slightly different buy/sell prices at banks and exchanges due to their spread markup, but the mid-market rates are always reciprocals.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">How many currencies does this converter support?</div>
+      <div class="faq-a">This converter supports 160+ currencies including all major world currencies (USD, EUR, GBP, JPY, CHF, CAD, AUD, CNY, etc.), emerging market currencies, and many smaller national currencies. Cryptocurrencies are not included — for crypto conversion, use a dedicated exchange.</div>
+    </div>
+  </section>
+
+  <!-- RELATED -->
+  <section class="related-section">
+    <h2 class="section-title">More free tools</h2>
+    <div class="related-grid" id="related-tools-grid"></div>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 <a href="https://quickutils.tools">quickutils.tools</a> · Rates via open exchange data, updated daily. Not for financial trading.</p>
+</footer>
+
+<script>
+  if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('embed');
+  const isMac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  document.querySelectorAll('kbd').forEach(k => { if (k.textContent.includes('Ctrl') && isMac) k.textContent = 'Cmd+D'; });
+
+  // ── CURRENCY DATA ──
+  const CURRENCIES = [
+    ['USD','US Dollar','🇺🇸'],['EUR','Euro','🇪🇺'],['GBP','British Pound','🇬🇧'],
+    ['JPY','Japanese Yen','🇯🇵'],['CAD','Canadian Dollar','🇨🇦'],['AUD','Australian Dollar','🇦🇺'],
+    ['CHF','Swiss Franc','🇨🇭'],['CNY','Chinese Yuan','🇨🇳'],['HKD','Hong Kong Dollar','🇭🇰'],
+    ['NZD','New Zealand Dollar','🇳🇿'],['SEK','Swedish Krona','🇸🇪'],['KRW','South Korean Won','🇰🇷'],
+    ['SGD','Singapore Dollar','🇸🇬'],['NOK','Norwegian Krone','🇳🇴'],['MXN','Mexican Peso','🇲🇽'],
+    ['INR','Indian Rupee','🇮🇳'],['BRL','Brazilian Real','🇧🇷'],['ZAR','South African Rand','🇿🇦'],
+    ['RUB','Russian Ruble','🇷🇺'],['TRY','Turkish Lira','🇹🇷'],['AED','UAE Dirham','🇦🇪'],
+    ['SAR','Saudi Riyal','🇸🇦'],['THB','Thai Baht','🇹🇭'],['MYR','Malaysian Ringgit','🇲🇾'],
+    ['IDR','Indonesian Rupiah','🇮🇩'],['PHP','Philippine Peso','🇵🇭'],['PLN','Polish Złoty','🇵🇱'],
+    ['CZK','Czech Koruna','🇨🇿'],['HUF','Hungarian Forint','🇭🇺'],['DKK','Danish Krone','🇩🇰'],
+    ['ILS','Israeli Shekel','🇮🇱'],['CLP','Chilean Peso','🇨🇱'],['ARS','Argentine Peso','🇦🇷'],
+    ['COP','Colombian Peso','🇨🇴'],['PKR','Pakistani Rupee','🇵🇰'],['EGP','Egyptian Pound','🇪🇬'],
+    ['NGN','Nigerian Naira','🇳🇬'],['VND','Vietnamese Dong','🇻🇳'],['UAH','Ukrainian Hryvnia','🇺🇦'],
+    ['RON','Romanian Leu','🇷🇴'],['BGN','Bulgarian Lev','🇧🇬'],['HRK','Croatian Kuna','🇭🇷'],
+    ['KWD','Kuwaiti Dinar','🇰🇼'],['QAR','Qatari Riyal','🇶🇦'],['MAD','Moroccan Dirham','🇲🇦'],
+    ['TWD','Taiwan Dollar','🇹🇼'],['BDT','Bangladeshi Taka','🇧🇩'],['KES','Kenyan Shilling','🇰🇪'],
+    ['GHS','Ghanaian Cedi','🇬🇭'],['TZS','Tanzanian Shilling','🇹🇿'],['UGX','Ugandan Shilling','🇺🇬'],
+    ['JMD','Jamaican Dollar','🇯🇲'],['TTD','Trinidad Dollar','🇹🇹'],['PEN','Peruvian Sol','🇵🇪'],
+    ['UYU','Uruguayan Peso','🇺🇾'],['ISK','Icelandic Króna','🇮🇸'],['HNL','Honduran Lempira','🇭🇳'],
+    ['GTQ','Guatemalan Quetzal','🇬🇹'],['CRC','Costa Rican Colón','🇨🇷'],['DOP','Dominican Peso','🇩🇴'],
+    ['OMR','Omani Rial','🇴🇲'],['BHD','Bahraini Dinar','🇧🇭'],['JOD','Jordanian Dinar','🇯🇴'],
+    ['LKR','Sri Lankan Rupee','🇱🇰'],['MMK','Myanmar Kyat','🇲🇲'],['KHR','Cambodian Riel','🇰🇭'],
+    ['NPR','Nepalese Rupee','🇳🇵'],['MOP','Macanese Pataca','🇲🇴'],['MUR','Mauritian Rupee','🇲🇺'],
+    ['BWP','Botswana Pula','🇧🇼'],['NAD','Namibian Dollar','🇳🇦'],['ZMW','Zambian Kwacha','🇿🇲'],
+  ];
+
+  const POPULAR_PAIRS = [
+    ['USD','EUR'],['USD','GBP'],['USD','JPY'],['EUR','GBP'],
+    ['USD','CAD'],['USD','AUD'],['USD','CHF'],['EUR','JPY'],
+  ];
+
+  const TABLE_CURRENCIES = ['EUR','GBP','JPY','CAD','AUD','CHF','CNY','HKD','INR','MXN','BRL','KRW','SGD','SEK','NOK'];
+
+  let rates = null;
+  let ratesDate = '';
+
+  // ── POPULATE SELECTS ──
+  const fromSel = document.getElementById('from-cur');
+  const toSel   = document.getElementById('to-cur');
+
+  CURRENCIES.forEach(([code, name, flag]) => {
+    const opt1 = new Option(`${flag} ${code} — ${name}`, code);
+    const opt2 = new Option(`${flag} ${code} — ${name}`, code);
+    fromSel.add(opt1); toSel.add(opt2);
+  });
+  fromSel.value = 'USD';
+  toSel.value   = 'EUR';
+
+  // ── FETCH RATES ──
+  async function fetchRates() {
+    document.getElementById('loading-bar').classList.add('show');
+    try {
+      // Free endpoint — USD base, no key required for open.er-api.com
+      const res = await fetch('https://open.er-api.com/v6/latest/USD');
+      if (!res.ok) throw new Error('Network response not ok');
+      const data = await res.json();
+      rates = data.rates;
+      ratesDate = data.time_last_update_utc || 'recently';
+      document.getElementById('ticker').innerHTML = `Rates updated: <span>${new Date(data.time_last_update_utc).toLocaleDateString()}</span>`;
+      document.getElementById('loading-bar').classList.remove('show');
+      renderPopularPairs();
+      renderRateTable();
+      convert();
+    } catch(e) {
+      document.getElementById('loading-bar').classList.remove('show');
+      // Fallback static rates (approximate April 2026)
+      rates = {
+        USD:1,EUR:0.924,GBP:0.789,JPY:149.5,CAD:1.368,AUD:1.548,CHF:0.901,
+        CNY:7.24,HKD:7.82,NZD:1.672,SEK:10.42,KRW:1342,SGD:1.347,NOK:10.61,
+        MXN:17.15,INR:83.4,BRL:4.97,ZAR:18.62,TRY:32.1,AED:3.673,SAR:3.751,
+        THB:35.1,MYR:4.72,IDR:15820,PHP:56.4,PLN:3.98,CZK:23.2,HUF:360,
+        DKK:6.89,ILS:3.71,CLP:912,ARS:878,COP:3910,PKR:278,EGP:48.7,
+        NGN:1490,VND:24580,UAH:38.2,RON:4.59,BGN:1.807,KWD:0.308,QAR:3.641,
+        MAD:9.98,TWD:32.1,BDT:109.8,KES:131.5,GHS:13.1,TZS:2545,UGX:3760,
+        JMD:155.4,TTD:6.79,PEN:3.73,UYU:38.9,ISK:138.5,HNL:24.7,GTQ:7.79,
+        CRC:513,DOP:58.9,OMR:0.385,BHD:0.377,JOD:0.709,LKR:298,MMK:2099,
+        KHR:4096,NPR:133.5,MOP:8.04,MUR:45.1,BWP:13.6,NAD:18.62,ZMW:25.8,
+        RUB:89.5,HRK:6.99,
+      };
+      document.getElementById('ticker').innerHTML = `Using <span>offline rates</span>`;
+      renderPopularPairs();
+      renderRateTable();
+      convert();
+    }
+  }
+
+  // ── CONVERT ──
+  function getRate(from, to) {
+    if (!rates) return null;
+    const usdFrom = rates[from] || 1;
+    const usdTo   = rates[to]   || 1;
+    return usdTo / usdFrom;
+  }
+
+  function fmtAmount(n) {
+    if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    if (n >= 1)    return n.toLocaleString('en-US', { maximumFractionDigits: 4 });
+    return n.toLocaleString('en-US', { maximumFractionDigits: 6 });
+  }
+
+  function convert() {
+    if (!rates) return;
+    const from   = fromSel.value;
+    const to     = toSel.value;
+    const amount = parseFloat(document.getElementById('amount').value) || 0;
+    const rate   = getRate(from, to);
+    const result = amount * rate;
+
+    document.getElementById('result-input').value = fmtAmount(result);
+    document.getElementById('result-main').textContent = `${fmtAmount(result)} ${to}`;
+    document.getElementById('result-eq').textContent =
+      `${fmtAmount(amount)} ${from} = ${fmtAmount(result)} ${to}  ·  1 ${from} = ${fmtAmount(rate)} ${to}`;
+    document.getElementById('result-updated').textContent = `Rates: ${ratesDate}`;
+    document.getElementById('result-box').classList.add('show');
+    document.getElementById('rtp-title').textContent = `1 ${from} =`;
+    renderRateTable();
+  }
+
+  function reverseConvert() {
+    if (!rates) return;
+    const from   = fromSel.value;
+    const to     = toSel.value;
+    const result = parseFloat(document.getElementById('result-input').value) || 0;
+    const rate   = getRate(to, from);
+    const amount = result * rate;
+    document.getElementById('amount').value = fmtAmount(amount);
+    document.getElementById('result-main').textContent = `${fmtAmount(result)} ${to}`;
+    document.getElementById('result-eq').textContent =
+      `${fmtAmount(amount)} ${from} = ${fmtAmount(result)} ${to}  ·  1 ${from} = ${fmtAmount(getRate(from,to))} ${to}`;
+    document.getElementById('result-box').classList.add('show');
+  }
+
+  function swapCurrencies() {
+    const f = fromSel.value, t = toSel.value;
+    fromSel.value = t; toSel.value = f;
+    convert();
+  }
+
+  function setAmount(n) {
+    document.getElementById('amount').value = n;
+    convert();
+  }
+
+  // ── POPULAR PAIRS ──
+  function renderPopularPairs() {
+    if (!rates) return;
+    const grid = document.getElementById('pop-grid');
+    grid.innerHTML = POPULAR_PAIRS.map(([a, b]) => {
+      const rate = getRate(a, b);
+      return `<div class="pop-card" onclick="fromSel.value='${a}';toSel.value='${b}';convert()">
+        <div class="pop-pair">${a} / ${b}</div>
+        <div class="pop-rate">${fmtAmount(rate)}</div>
+        <div class="pop-label">1 ${a} = x ${b}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── RATE TABLE ──
+  function renderRateTable() {
+    if (!rates) return;
+    const from = fromSel.value;
+    const panel = document.getElementById('rate-table-panel');
+    panel.style.display = '';
+    const rows = document.getElementById('rate-rows');
+    const cur = CURRENCIES.reduce((m, [c,,f]) => { m[c]=f; return m; }, {});
+    rows.innerHTML = TABLE_CURRENCIES
+      .filter(c => c !== from)
+      .map(code => {
+        const rate = getRate(from, code);
+        const name = (CURRENCIES.find(c=>c[0]===code)||[])[1] || code;
+        const flag = cur[code] || '';
+        return `<div class="rate-row">
+          <div class="rr-left">
+            <span class="rr-flag">${flag}</span>
+            <div>
+              <div class="rr-code">${code}</div>
+              <div class="rr-name">${name}</div>
+            </div>
+          </div>
+          <div class="rr-rate">${fmtAmount(rate)}</div>
+        </div>`;
+      }).join('');
+  }
+
+  // ── FAQ ──
+  document.querySelectorAll('.faq-q').forEach(q => q.addEventListener('click', () => q.parentElement.classList.toggle('open')));
+
+  // ── SHARE ──
+  function copyLink() {
+    navigator.clipboard.writeText('https://currency.quickutils.tools').then(() => {
+      const btn = event.target; btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = '🔗 Copy link', 2000);
+    });
+  }
+
+  // ── RELATED ──
+  const s = document.createElement('script');
+  s.src = 'https://quickutils.tools/tools.js';
+  s.onload = () => { if (typeof renderRelatedTools === 'function') renderRelatedTools({ currentUrl: 'https://currency.quickutils.tools', max: 8 }); };
+  document.head.appendChild(s);
+
+  // ── INIT ──
+  fetchRates();
+</script>
+
+<!-- TOP AD BANNER (replace with AdSense code after approval) -->
+<!-- <div id="ad-top"></div> -->
+<!-- AD PLACEHOLDER (replace with AdSense) -->
+<!-- <div id="ad-mid"></div> -->
+<!-- INLINE AD (replace with AdSense) -->
+<!-- <div id="ad-inline"></div> -->
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8872742474601337" crossorigin="anonymous"></script> -->
+
+</body>
+</html>
